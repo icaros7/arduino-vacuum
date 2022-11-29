@@ -11,21 +11,25 @@
  *
  * 이지윤, 이호민
  *
- * TODO: If no more has pin, then do not use LCD
+ * TODO: Loop() 구현
+ * TODO: LCD 연결
+ * TODO: DC모터 드라이버 사용
+ * TODO: IR 리모콘 값 읽어오기
+ * TODO: 간단한 R/C용 Android App 제작
 */
 #include <LiquidCrystal.h>
 #include <IRremote.h>
 #include <SoftwareSerial.h>
 
-#define IR_RX 29   // TODO: Duplicate pin number
-#define BT_RX 30   // TODO: Duplicate pin number
-#define BT_TX 31   // TODO: Duplicate pin number
-#define US0_TRI 23 // TODO: Duplicate pin number
-#define US0_ECH 22 // TODO: Duplicate pin number
-#define US1_TRI 25 // TODO: Duplicate pin number
-#define US1_ECH 24 // TODO: Duplicate pin number
-#define US2_TRI 27 // TODO: Duplicate pin number
-#define US2_ECH 26 // TODO: Duplicate pin number
+#define IR_RX 29
+#define BT_RX 30
+#define BT_TX 31
+#define US0_TRI 23
+#define US0_ECH 22
+#define US1_TRI 25
+#define US1_ECH 24
+#define US2_TRI 27
+#define US2_ECH 26
 #define LCD_0 12  // TODO: Duplicate pin number
 #define LCD_1 11  // TODO: Duplicate pin number
 #define LCD_2 5   // TODO: Duplicate pin number
