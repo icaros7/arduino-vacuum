@@ -17,15 +17,15 @@
 #include <IRremote.h>
 #include <SoftwareSerial.h>
 
-#define IR_RX 11  // TODO: Duplicate pin number
-#define BT_RX 2   // TODO: Duplicate pin number
-#define BT_TX 3   // TODO: Duplicate pin number
-#define US0_TRI 3 // TODO: Duplicate pin number
-#define US0_ECH 2 // TODO: Duplicate pin number
-#define US1_TRI 3 // TODO: Duplicate pin number
-#define US1_ECH 2 // TODO: Duplicate pin number
-#define US2_TRI 3 // TODO: Duplicate pin number
-#define US2_ECH 2 // TODO: Duplicate pin number
+#define IR_RX 29   // TODO: Duplicate pin number
+#define BT_RX 30   // TODO: Duplicate pin number
+#define BT_TX 31   // TODO: Duplicate pin number
+#define US0_TRI 23 // TODO: Duplicate pin number
+#define US0_ECH 22 // TODO: Duplicate pin number
+#define US1_TRI 25 // TODO: Duplicate pin number
+#define US1_ECH 24 // TODO: Duplicate pin number
+#define US2_TRI 27 // TODO: Duplicate pin number
+#define US2_ECH 26 // TODO: Duplicate pin number
 #define LCD_0 12  // TODO: Duplicate pin number
 #define LCD_1 11  // TODO: Duplicate pin number
 #define LCD_2 5   // TODO: Duplicate pin number
@@ -99,11 +99,12 @@ void mtRotCtrl(int mt) {
   Serial.print("INFO: Motor rotation control = ");
 
   if (mt == 0) {      // Left side DC motor control
-    if (mt0)) {
+    if (!mt0) {
       Serial.println("Motor0 to forward");
 
       mt0PwmCtrl(0);  // Stop
       mt0Ctrl(5);     // Forward rotation
+      mt0PwmCtrl(128); // set speed 128
       mt0 = true;
     }
     else {
@@ -111,11 +112,12 @@ void mtRotCtrl(int mt) {
       
       mt0PwmCtrl(0);  // Stop
       mt0Ctrl(10);    // Reverse rotation
+      mt0PwmCtrl(128) //set speed max(128)
       mt0 = false;
     }
   }
   else if (mt == 1) { // Right side DC motor control
-    if (mt1)) {
+    if (!mt1) {
       Serial.println("Motor1 to forward");
 
       mt1PwmCtrl(0);  // Stop
@@ -216,6 +218,27 @@ void setup() {
   BTSerial.begin(9600);
 }
 
-void loop() {
+void loop() { 
+// 왼쪽: 시계 오른쪽: 반시계 오른쪽회전
+// 오른쪽 : 시계 왼쪽: 반시계 왼쪽 회전
+
+  // 초음파센서가 왼쪽에 장애물이 있다고 판단했을때..를 어떻게...?
+  // 오른쪽 회전
+  digitalWrite(mt0Ctrl,HIGH); //시계 방향 세팅
+  digitalWrite(mt1Ctrl,LOW); //시계 방향 세팅
+  
+  // 초음파 오른쪽 장애물 판단 시
+  // 왼쪽 회전
+  digitalWrite(mt0Ctrl,LOW); //반시계 방향 세팅
+  digitalWrtie(mt1Ctrl,HIGH); //반시계 방향 세팅
+
+  //초음파 센서 양쪽 다 장애물 판단 시
+  //정지
+  digitalWrite(mt0Ctrl,LOW);
+  digitalWrtie(mt1Ctrl,LOW);
+  delay(2000);
+  
+  mtRotCtrl(0);
+  mtRotCtrl(1);
   
 }
