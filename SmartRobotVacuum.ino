@@ -11,7 +11,11 @@
  *
  * 이지윤, 이호민
  *
- * TODO: If no more has pin, then do not use LCD
+ * TODO: Loop() 구현
+ * TODO: LCD 연결
+ * TODO: DC모터 드라이버 사용
+ * TODO: IR 리모콘 값 읽어오기
+ * TODO: 간단한 R/C용 Android App 제작
 */
 #include <LiquidCrystal.h>
 #include <IRremote.h>
