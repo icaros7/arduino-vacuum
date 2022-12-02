@@ -17,6 +17,9 @@
  * TODO: IR 리모콘 값 읽어오기
  * TODO: 간단한 R/C용 Android App 제작
 */
+
+//거리 앞 센서는 9cm 후진은 15cm
+
 #include <LiquidCrystal.h>
 #include <IRremote.h>
 #include <SoftwareSerial.h>
@@ -120,7 +123,7 @@ void mtRotCtrl(int mt) {
       
       mt0PwmCtrl(0);  // Stop
       mt0Ctrl(10);    // Reverse rotation
-      mt0PwmCtrl(128) //set speed max(128)
+      mt0PwmCtrl(128); //set speed max(128)
       mt0 = false;
     }
   }
@@ -182,7 +185,6 @@ void printLcd(char[] str) {
   lcd.print(str);
   Serial.print("INFO: Print on LCD = ");
   Serial.println(str);
-
 }
 
 /**
@@ -264,7 +266,7 @@ else if (ultrasonic < 300) //TODO: Duplicate distance
   
   mtRotCtrl(0);
   mtRotCtrl(1);
-  
+
   long [] ultra = ultrasonic();
   printLcd(ultrasonic);
 }
