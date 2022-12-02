@@ -21,21 +21,21 @@
 #include <IRremote.h>
 #include <SoftwareSerial.h>
 
-#define IR_RX 29   // TODO: Duplicate pin number
-#define BT_RX 30   // TODO: Duplicate pin number
-#define BT_TX 31   // TODO: Duplicate pin number
-#define US0_TRI 23 // TODO: Duplicate pin number
-#define US0_ECH 22 // TODO: Duplicate pin number
-#define US1_TRI 25 // TODO: Duplicate pin number
-#define US1_ECH 24 // TODO: Duplicate pin number
-#define US2_TRI 27 // TODO: Duplicate pin number
-#define US2_ECH 26 // TODO: Duplicate pin number
-#define LCD_0 32  // TODO: Duplicate pin number
-#define LCD_1 34  // TODO: Duplicate pin number
-#define LCD_2 35   // TODO: Duplicate pin number
-#define LCD_3 36   // TODO: Duplicate pin number
-#define LCD_4 37   // TODO: Duplicate pin number
-#define LCD_5 39   // TODO: Duplicate pin number
+#define IR_RX 29
+#define BT_RX 30   
+#define BT_TX 31   
+#define US0_TRI 23 
+#define US0_ECH 22 
+#define US1_TRI 25 
+#define US1_ECH 24 
+#define US2_TRI 27 
+#define US2_ECH 26 
+#define LCD_0 32  
+#define LCD_1 34  
+#define LCD_2 35   
+#define LCD_3 36   
+#define LCD_4 37   
+#define LCD_5 39   
 
 LiquidCrystal lcd(LCD_0, LCD_1, LCD_2, LCD_3, LCD_4, LCD_5);
 IRrecv irrecv(IR_RX);
@@ -69,7 +69,7 @@ void mt0Ctrl(unsigned char da) {
  */
 void mt1Ctrl(unsigned char da) {
   for (int i = 0; i < 4; i++) {
-    if (da & 0x08) { digitalWrite(MT1[i], HIGHT); }
+    if (da & 0x08) { digitalWrite(MT1[i], HIGH); }
     else { digitalWrite(MT1[i], LOW); }
     da *= 2;
   }
@@ -116,7 +116,7 @@ void mtRotCtrl(int mt) {
       mt0 = true;
     }
     else {
-      Serial.println("Motor0 to forward");
+      Serial.println("Motor0 to reverse");
       
       mt0PwmCtrl(0);  // Stop
       mt0Ctrl(10);    // Reverse rotation
@@ -182,6 +182,7 @@ void printLcd(char[] str) {
   lcd.print(str);
   Serial.print("INFO: Print on LCD = ");
   Serial.println(str);
+
 }
 
 /**
@@ -234,8 +235,17 @@ void loop() {
 
 if( ultrasonic < 0 ) {
   mt0PwmCtrl(0);
-  mt
+  mt1Ctrl(5);
+  mt0Ctrl(5);
+  mt0PwmCtrl(128);
+  mt1PwmCtrl(128);
 }
+else if (ultrasonic < 300) //TODO: Duplicate distance
+{
+  
+}
+
+
   // 초음파센서가 왼쪽에 장애물이 있다고 판단했을때..를 어떻게...?
   // 오른쪽 회전
   digitalWrite(mt0Ctrl,HIGH); //시계 방향 세팅
@@ -255,4 +265,6 @@ if( ultrasonic < 0 ) {
   mtRotCtrl(0);
   mtRotCtrl(1);
   
+  long [] ultra = ultrasonic();
+  printLcd(ultrasonic);
 }
