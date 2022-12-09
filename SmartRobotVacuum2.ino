@@ -1,18 +1,33 @@
-// MT0: 10(E), 9(IN1), 8(IN2)
-// MT1: 13(E), 12(IN3), 11(IN4)
+// MT0: 12(E), 38(IN1), 39(IN2)
+// MT1: 11(E), 40(IN3), 41(IN4)
 // MT2: 7(E), 6(IN1), 5(IN2) 
 
 //메소드 써서 loop 
 //m0 = left side , m1 = right side 
 // US0 = left ,US1 = right, US2 = rear
 
-int Dir1Pin_m0 = 9; // in1
-int Dir2Pin_m0 = 8; // in2
-int SpeedPin_m0 = 10; // enable
+// IR Vout: (Purple) 13
+// US_0 ECH: (Blue) 22
+// US_0 TRI: (Purple) 23
+// US_1 ECH: (Blue) 24
+// US_1 TRI: (Purple) 25
+// US_2 ECH: (Blue) 26
+// US_2 TRI: (Purple) 27
 
-int Dir1Pin_m1 = 12; //in1 
-int Dir2Pin_m1 = 11; //in2
-int SpeedPin_m1 = 13; //enable
+// BT_RX: (Blue) 30
+// BT_TX: (Purple) 31
+
+LiquidCrystal lcd(LCD_0, LCD_1, LCD_2, LCD_3, LCD_4, LCD_5);
+IRrecv irrecv(IR_RX);
+SoftwareSerial BTSerial(BT_RX, BT_TX);
+
+int Dir1Pin_m0 = 38; // in1
+int Dir2Pin_m0 = 39; // in2
+int SpeedPin_m0 = 12; // enable
+
+int Dir1Pin_m1 = 40; //in1 
+int Dir2Pin_m1 = 41; //in2
+int SpeedPin_m1 = 11; //enable
 
 int Dir1Pin_m2 = 6; //in1
 int Dir2Pin_m2 = 5; //in2
@@ -28,6 +43,12 @@ int US2_ECH = 26;
 long duration1, distance1; 
 long duration2, distance2;
 long duration3, distance3;
+
+int IR_RX = 29;
+int BT_RX = 30;   
+int BT_TX = 31;
+
+char cmd;
 
 void setup() {
     //motor pinMode
@@ -52,6 +73,21 @@ void setup() {
 
 }
 //마지막에 작동했던 것을 기억하는 전역변수 선언.
+
+//BT
+bool btCmdIn() {
+  if (BTSerial.available()) {
+    cmd = (char) BTSerial.read();
+    Serial.print("INFO: BT command = ");
+    Serial.println(cmd);
+
+    return true;
+  }
+
+  return false;
+}
+
+
 
 //정방향 메소드
 void forward(int temp) {
@@ -208,11 +244,6 @@ void loop() {
     Serial.println("cm"); // cm를 출력합니다.
    }
    delay(2000);
-}
-
-
-    } 
-
 }
 
 
