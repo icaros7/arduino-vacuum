@@ -12,196 +12,50 @@
  * 이지윤, 이호민
 */
 #include <SoftwareSerial.h>
+#include <IRremote.h>
 
-#define IR_RX 29
-#define BT_RX 30   
-#define BT_TX 31   
-#define US0_TRI 23 
+#define US0_TRI 23  // 왼쪽 초음파 센서 핀
 #define US0_ECH 22 
-#define US1_TRI 25 
-#define US1_ECH 24 
-#define US2_TRI 27 
-#define US2_ECH 26 
-#define LCD_0 32  
-#define LCD_1 34  
-#define LCD_2 35   
-#define LCD_3 36   
-#define LCD_4 37   
-#define LCD_5 39   
+#define US1_TRI 25  // 오른쪽 초음파 센서 핀
+#define US1_ECH 24
+#define US2_TRI 27  // 후방 초음파 센서 핀
+#define US2_ECH 26
+#define IR_RX 13    // IR 센서 PWM 컨트롤 피
 
-LiquidCrystal lcd(LCD_0, LCD_1, LCD_2, LCD_3, LCD_4, LCD_5);
-IRrecv irrecv(IR_RX);
-SoftwareSerial BTSerial(BT_RX, BT_TX);
+int Dir1Pin_m0 = 38; // 왼쪽 모터 in1
+int Dir2Pin_m0 = 39; // 왼쪽 모터 in2
+int SpeedPin_m0 = 12;// 왼쪽 모터 enable & PWM 컨트롤
 
-// MT0: 10(E), 9(IN1), 8(IN2)
-// MT1: 13(E), 12(IN3), 11(IN4)
-// MT2: 7(E), 6(IN1), 5(IN2) 
+int Dir1Pin_m1 = 40; // 오른쪽 모터 in1
+int Dir2Pin_m1 = 41; // 오른쪽 모터 in2
+int SpeedPin_m1 = 11;// 오른쪽 모터 enable & PWM 컨트롤
 
-int MT0[6] = {42, 44, 46, 48, 4, 5};  // TODO: Duplicate pin number
-int MT1[6] = {42, 44, 46, 48, 4, 5};  // TODO: Duplicate pin number
-int MT2[6] = {42, 44, 46, 48, 4, 5};  // TODO: Duplicate pin number
-bool mt0 = true, mt1 = true;
-char cmd;
+int Dir1Pin_m2 = 46; // 청소 모터 in1
+int Dir2Pin_m2 = 47; // 청소 모터 in2
+int SpeedPin_m2 = 10;// 청소 모터 enable & PWM 컨트롤
 
-/**
- * Control left side DC motor
- * @param da Data value
- */
-void mt0Ctrl(unsigned char da) {
-  for (int i = 0; i < 4; i++) {
-    if (da & 0x08) { digitalWrite(MT0[i], HIGH); }
-    else { digitalWrite(MT0[i], LOW); }
-    da *= 2;
-  }
-}
+long dis[3];                // 초음파 센서 데이터 저장용 배열
+int btn;    // IR 리모콘 데이터 저장 변수
+char cmd;   // BT Serial 통신 텍스트 저장 변수
+bool mov;   // 마지막 진행 방향 저장 변수 (0: 후진, 1: 전진)
 
-/**
- * Control right side DC motor
- * @param da Data value
- */
-void mt1Ctrl(unsigned char da) {
-  for (int i = 0; i < 4; i++) {
-    if (da & 0x08) { digitalWrite(MT1[i], HIGH); }
-    else { digitalWrite(MT1[i], LOW); }
-    da *= 2;
-  }
-}
-
-/**
- * Control left side DC motor output of power
- * @param spe Speed value
- */
-void mt0PwmCtrl(unsigned char spe) {
-  Serial.print("INFO: Change Motor0 PWM = ");
-  Serial.println(spe);
-
-  analogWrite(MT0[4], spe);
-  analogWrite(MT0[5], spe);
-}
-
-/**
- * Control right side DC motor output of power
- * @param spe Speed value
- */
-void mt1PwmCtrl(unsigned char spe) {
-  Serial.print("INFO: Change Motor1 PWM = ");
-  Serial.println(spe);
-
-  analogWrite(MT1[4], spe);
-  analogWrite(MT1[5], spe);
-}
-
-/**
- * Change motor working direction
- * @param mt 0 = left, 1 = right
- */
-void mtRotCtrl(int mt) {
-  Serial.print("INFO: Motor rotation control = ");
-
-  if (mt == 0) {      // Left side DC motor control
-    if (!mt0) {
-      Serial.println("Motor0 to forward");
-
-      mt0PwmCtrl(0);  // Stop
-      mt0Ctrl(5);     // Forward rotation
-      mt0PwmCtrl(128); // set speed 128
-      mt0 = true;
-    }
-    else {
-      Serial.println("Motor0 to reverse");
-      
-      mt0PwmCtrl(0);  // Stop
-      mt0Ctrl(10);    // Reverse rotation
-      mt0PwmCtrl(128); //set speed max(128)
-      mt0 = false;
-    }
-  }
-
-  
-  else if (mt == 1) { // Right side DC motor control
-    if (!mt1) {
-      Serial.println("Motor1 to forward");
-
-      mt1PwmCtrl(0);  // Stop
-      mt1Ctrl(5);     // Forward rotation
-      mt1 = true;
-    }
-    else {
-      Serial.println("Motor1 to reverse");
-
-      mt1PwmCtrl(0);  // Stop
-      mt1Ctrl(10);    // Reverse rotation
-      mt1 = false;
-  }
-  else {
-    Serial.println("ERROR");
-    Serial.println("ERROR: mtRotCtrl() invaild motor number");
-    }
-}
-
-/**
- * Scanning distance via ultrasonic sensor
- * return US0, US1, US2 distance array
- */
-long[] ultrasonic() {
-  Serial.println("INFO: Scanning Ultrasonic sensor");
-
-  digitalWrite(US0_TRI, LOW);
-  digitalWrite(US1_TRI, LOW);
-  digitalWrite(US2_TRI, LOW);
-  delayMicroseconds(2);
-  digitalWrite(US0_TRI, HIGH);
-  digitalWrite(US1_TRI, HIGH);
-  digitalWrite(US2_TRI, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(US0_TRI, LOW);
-  digitalWrite(US1_TRI, LOW);
-  digitalWrite(US2_TRI, LOW);
-
-  long[3] temp = { pulseIn(US0_ECH, HIGH) / 58.2, pulseIn(US1_ECH, HIGH) / 58.2, pulseIn(US2_ECH, HIGH) / 58.2 };
-
-  Serial.print("INFO: Ultrasonic scan data = ");
-  Serial.println(temp);
-
-  return temp;
-}
-
-/**
- * Print char array on Crystal LCD
- * @param str String what you want to print on LCD
- */
-void printLcd(char[] str) {
-  lcd.print(str);
-  Serial.print("INFO: Print on LCD = ");
-  Serial.println(str);
-}
-
-/**
- * Read command from Bluetooth
- * return Success or not
- */
-bool btCmdIn() {
-  if (BTSerial.available()) {
-    cmd = (char) BTSerial.read();
-    Serial.print("INFO: BT command = ");
-    Serial.println(cmd);
-
-    return true;
-  }
-
-  return false;
-}
+IRrecv irrecv(IR_RX); // IR 객체
 
 void setup() {
-  Serial.begin(9600);
+  Serial.println("INFO: Call setup()");
 
-  // DC Motor init
-  for (int i = 0; i < 6; i++) {
-    pinMode(MT0[i], OUTPUT);
-    pinMode(MT1[i], OUTPUT);
-  }
+  //motor pinMode
+  pinMode(Dir1Pin_m0, OUTPUT);
+  pinMode(Dir2Pin_m0, OUTPUT);
+  pinMode(SpeedPin_m0, OUTPUT);
+  pinMode(Dir1Pin_m1, OUTPUT);
+  pinMode(Dir2Pin_m1, OUTPUT);
+  pinMode(SpeedPin_m1, OUTPUT);
+  pinMode(Dir1Pin_m2, OUTPUT);
+  pinMode(Dir2Pin_m2, OUTPUT);
+  pinMode(SpeedPin_m2, OUTPUT);
 
-  // Ultrasonic sensor init
+  // senor pinMode
   pinMode(US0_TRI, OUTPUT);
   pinMode(US0_ECH, INPUT);
   pinMode(US1_TRI, OUTPUT);
@@ -209,53 +63,154 @@ void setup() {
   pinMode(US2_TRI, OUTPUT);
   pinMode(US2_ECH, INPUT);
 
-  // CrystalLCD init
-  lcd.begin(16, 2);
-
-  // IR RX init
-  irrecv.enableIRIn();
-  irrecv.blink13(true);
-
-  // BT init
-  BTSerial.begin(9600);
+  Serial.begin(9600);
+  Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
+  IrReceiver.begin(IR_RX);
 }
 
-void loop() { 
-// 왼쪽: 시계 오른쪽: 반시계 오른쪽회전
-// 오른쪽 : 시계 왼쪽: 반시계 왼쪽 회전
+/* 블루투스를 통해 텍스트 읽어오기 */
+char btCmdIn() {
+  if (Serial3.available()) {  // 통신이 가능한 상태면
+    cmd = Serial3.read();     // 블루투스 TX로부터 데이터를 받아와 cmd에 저장
 
-if( ultrasonic < 0 ) {
-  mt0PwmCtrl(0);
-  mt1Ctrl(5);
-  mt0Ctrl(5);
-  mt0PwmCtrl(128);
-  mt1PwmCtrl(128);
-}
-else if (ultrasonic < 300) //TODO: Duplicate distance
-{
-  
+    Serial.println(cmd);      // 로깅용 Serial 모니터 출력
+
+    return cmd;
+  }
+  else { return "e"; }        // 실패시 e 반환
 }
 
+/* IR 리모콘을 통해 값 읽어오기 */
+int irRx() {
+  if (IrReceiver.decode()) {  // IR로부터 데이터를 읽어와 객체 내에 저장
+    IrReceiver.resume();      // 다음 값 수신 준비
+    int temp = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
 
-  // 초음파센서가 왼쪽에 장애물이 있다고 판단했을때..를 어떻게...?
-  // 오른쪽 회전
-  digitalWrite(mt0Ctrl,HIGH); //시계 방향 세팅
-  digitalWrite(mt1Ctrl,LOW); //시계 방향 세팅
-  
-  // 초음파 오른쪽 장애물 판단 시
-  // 왼쪽 회전
-  digitalWrite(mt0Ctrl,LOW); //반시계 방향 세팅
-  digitalWrtie(mt1Ctrl,HIGH); //반시계 방향 세팅
+    Serial.println(temp);
 
-  //초음파 센서 양쪽 다 장애물 판단 시
-  //정지
-  digitalWrite(mt0Ctrl,LOW);
-  digitalWrtie(mt1Ctrl,LOW);
-  delay(2000);
-  
-  mtRotCtrl(0);
-  mtRotCtrl(1);
+    return temp;
+  }
+}
 
-  long [] ultra = ultrasonic();
-  printLcd(ultrasonic);
+
+/* 차량 전진 메서드 */
+void forward(int temp) {
+  if( temp == 1) { stop(); }
+
+  digitalWrite(Dir1Pin_m0, HIGH);
+  digitalWrite(Dir2Pin_m0, LOW);
+  analogWrite(SpeedPin_m0, 255);  // SpeedPin은 PWM 컨트롤 해야하므로 analogWrite 사용
+  digitalWrite(Dir1Pin_m1, HIGH);
+  digitalWrite(Dir2Pin_m1, LOW);
+  analogWrite(SpeedPin_m1, 255);
+}
+
+/* 차량 우회전 메서드 */
+void right(void) {
+  digitalWrite(Dir1Pin_m0, LOW);  // left side 역회전
+  digitalWrite(Dir2Pin_m0, HIGH);
+  analogWrite(SpeedPin_m0, 255);
+  digitalWrite(Dir1Pin_m1, HIGH); // right side 정회전
+  digitalWrite(Dir2Pin_m1, LOW);
+  analogWrite(SpeedPin_m1, 255);
+}
+
+/* 차량 좌회전 메서드 */
+void left(void) {
+  digitalWrite(Dir1Pin_m0, HIGH); // left side 정회전
+  digitalWrite(Dir2Pin_m0, LOW);
+  analogWrite(SpeedPin_m0, 255);
+  digitalWrite(Dir1Pin_m1, LOW);  // right side 역회전
+  digitalWrite(Dir2Pin_m1, HIGH);
+  analogWrite(SpeedPin_m1, 255);
+}
+
+/* 차량 후진 메서드 */
+void reverse(int temp) {
+  if( temp == 1) { stop(); }  // 매개변수로 1이 넘어오면 완전 정지 후 출발
+
+  digitalWrite(Dir1Pin_m0, LOW);  // left side 역회전
+  digitalWrite(Dir2Pin_m0, HIGH);
+  analogWrite(SpeedPin_m0, 255);
+  digitalWrite(Dir1Pin_m1, LOW);  // right side 역회전
+  digitalWrite(Dir2Pin_m1, HIGH);
+  analogWrite(SpeedPin_m1, 255);
+}
+
+/* 차량 정지 메서드 */
+void stop() {
+  analogWrite(SpeedPin_m0,0);
+  analogWrite(SpeedPin_m1,0);
+}
+
+/* 초음파 센서 값 읽기 메서드 */
+void ultrasonic() {
+  //초음파 센서를 초기화 하는 과정 US0
+  digitalWrite(US0_TRI, LOW);
+  delayMicroseconds(2);
+  digitalWrite(US0_TRI, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(US0_TRI, LOW);
+
+  //초음파 센서를 초기화 하는 과정 US1
+  digitalWrite(US1_TRI, LOW);
+  delayMicroseconds(2);
+  digitalWrite(US1_TRI, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(US1_TRI, LOW);
+
+  //초음파 센서를 초기화 하는 과정 US2
+  digitalWrite(US2_TRI, LOW);
+  delayMicroseconds(2);
+  digitalWrite(US2_TRI, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(US2_TRI, LOW);
+
+  // 트리커 핀에서 나온 펄스를 받아 cm 단위로 거리 계산
+  dis[0] = pulseIn(US0_ECH, HIGH) / 58.2;
+  dis[1] = pulseIn(US1_ECH, HIGH) / 58.2;
+  dis[2] = pulseIn(US2_ECH, HIGH) / 58.2;
+
+  Serial.print(dis[0]);
+  Serial.print(", ");
+  Serial.print(dis[1]);
+  Serial.print(", ");
+  Serial.println(dis[2]);
+}
+
+/* 물걸래 청소기 작동 컨트롤 */
+void vacuumOnOff(bool state) {
+  if (state) {
+    digitalWrite(Dir1Pin_m2, LOW);
+    digitalWrite(Dir2Pin_m2, HIGH);
+    analogWrite(SpeedPin_m2, 255);
+  }
+  else {
+    digitalWrite(Dir1Pin_m2, LOW);
+    digitalWrite(Dir2Pin_m2, HIGH);
+    analogWrite(SpeedPin_m2, 0);
+  }
+}
+
+void loop() {
+  cmd = btCmdIn();
+  btn = irRx();
+
+  if (cmd == 'O' || btn == 94) { vacuumOnOff(true); }
+  if (cmd == 'F' || btn == 74) { vacuumOnOff(false); }
+  if (cmd == 'D' || btn == 90) { right(); }
+  if (cmd == 'C' || btn == 8) { left(); }
+  if (cmd == 'S' || btn == 28) { stop(); }
+  if (cmd == 'A' || btn == 24) {
+    if (!mov) { forward(1); }
+    else { forward(0); }
+
+    mov = true;
+  }
+  if (cmd == 'B' || btn == 82) {
+    if (mov) { reverse(1); }
+    else { reverse(0); }
+
+    mov = false;
+  }
 }
