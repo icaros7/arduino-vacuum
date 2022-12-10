@@ -4,24 +4,13 @@
  *
  * MT0: Left side DC Motor
  * MT1: Right side DC Motor
- * MT2: [TODO] Water mop DC Motor
+ * MT2: Water Vacuum Motor
  * US0: Left side ultrasonic sensor
  * US1: Right side ultrasonic sensor
  * US2: Rear side ultrasonic sensor
  *
  * 이지윤, 이호민
- *
- * TODO: Loop() 구현
- * TODO: LCD 연결
- * TODO: DC모터 드라이버 사용
- * TODO: IR 리모콘 값 읽어오기
- * TODO: 간단한 R/C용 Android App 제작
 */
-
-//거리 앞 센서는 9cm 후진은 15cm
-
-#include <LiquidCrystal.h>
-#include <IRremote.h>
 #include <SoftwareSerial.h>
 
 #define IR_RX 29
