@@ -1,6 +1,6 @@
 /*
  * Embedded project
- * Remote control robot vaccum
+ * Remote control robot vacuum
  *
  * MT0: Left side DC Motor
  * MT1: Right side DC Motor
