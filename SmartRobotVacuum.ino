@@ -22,6 +22,7 @@
 #define US2_ECH 26
 #define IR_RX 13    // IR 센서 PWM 컨트롤 피
 
+int btn;    	     // IR 리모콘 데이터 저장 변수
 int Dir1Pin_m0 = 38; // 왼쪽 모터 in1
 int Dir2Pin_m0 = 39; // 왼쪽 모터 in2
 int SpeedPin_m0 = 12;// 왼쪽 모터 enable & PWM 컨트롤
@@ -34,8 +35,7 @@ int Dir1Pin_m2 = 46; // 청소 모터 in1
 int Dir2Pin_m2 = 47; // 청소 모터 in2
 int SpeedPin_m2 = 10;// 청소 모터 enable & PWM 컨트롤
 
-long dis[3];                // 초음파 센서 데이터 저장용 배열
-int btn;    // IR 리모콘 데이터 저장 변수
+long dis[3];// 초음파 센서 데이터 저장용 배열
 char cmd;   // BT Serial 통신 텍스트 저장 변수
 bool mov;   // 마지막 진행 방향 저장 변수 (0: 후진, 1: 전진)
 
