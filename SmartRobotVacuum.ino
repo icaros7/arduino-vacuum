@@ -193,24 +193,39 @@ void vacuumOnOff(bool state) {
 }
 
 void loop() {
-  cmd = btCmdIn();
-  btn = irRx();
+  cmd = btCmdIn();	// Call Bluetooth command
+  btn = irRx();		// Call IR command
 
-  if (cmd == 'O' || btn == 94) { vacuumOnOff(true); }
-  if (cmd == 'F' || btn == 74) { vacuumOnOff(false); }
-  if (cmd == 'D' || btn == 90) { right(); }
-  if (cmd == 'C' || btn == 8) { left(); }
-  if (cmd == 'S' || btn == 28) { stop(); }
-  if (cmd == 'A' || btn == 24) {
-    if (!mov) { forward(1); }
+  ultrasonic();		// Scanning Ultrasonic sensor data to global var
+
+  if(dis[0] < 5 && dis[1] < 5) {	// If left and right side both face obstacle
+    if (dis[2] < 15) {			  // If rear side not face obstacle
+      reverse();
+      delay(3000);
+      stop();
+      if (dis[0] < 5) { left(); }	  // If left side not face obstacle
+      else if (dis[1] < 5) { right(); }   // Else if right side not face obstacle
+      else { forward(); }		  // Else go straight and try to overpass obstacle
+    }
+  }
+  else if (dis[0] < 5) { left(); }
+  else if (dis[1] < 5) { right(); }
+
+  if (cmd == 'O' || btn == 94) { vacuumOnOff(true); }	// Turn on vacuum via BT 'O' or IR num_3
+  if (cmd == 'F' || btn == 74) { vacuumOnOff(false); }	// Turn off vacuum via BT 'F' or IR num_9
+  if (cmd == 'D' || btn == 90) { right(); }		// Turn right via BT 'D' or IR num_6
+  if (cmd == 'C' || btn == 8) { left(); }		// Turn left via BT 'C' or IR num_3
+  if (cmd == 'S' || btn == 28) { stop(); }		// Set pwmSpeed 0 via BT 'S' or IR num_5
+  if (cmd == 'A' || btn == 24) {// Chnage direction to forward via BT 'A' or IR num_2
+    if (!mov) { forward(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
     else { forward(0); }
 
-    mov = true;
+    mov = true;			// Set last direction to forward
   }
-  if (cmd == 'B' || btn == 82) {
-    if (mov) { reverse(1); }
+  if (cmd == 'B' || btn == 82) {// Change direction to rear via BT 'B' or IR num_8
+    if (mov) { reverse(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
     else { reverse(0); }
 
-    mov = false;
+    mov = false;		// Set last direction to reverse
   }
 }
