@@ -69,26 +69,22 @@ void setup() {
 }
 
 /* 블루투스를 통해 텍스트 읽어오기 */
-char btCmdIn() {
+void btCmdIn() {
   if (Serial3.available()) {  // 통신이 가능한 상태면
     cmd = Serial3.read();     // 블루투스 TX로부터 데이터를 받아와 cmd에 저장
 
     Serial.println(cmd);      // 로깅용 Serial 모니터 출력
 
-    return cmd;
   }
-  else { return "e"; }        // 실패시 e 반환
 }
 
 /* IR 리모콘을 통해 값 읽어오기 */
-int irRx() {
+void irRx() {
   if (IrReceiver.decode()) {  // IR로부터 데이터를 읽어와 객체 내에 저장
     IrReceiver.resume();      // 다음 값 수신 준비
-    int temp = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
+    btn = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
 
     Serial.println(temp);
-
-    return temp;
   }
 }
 
@@ -193,8 +189,8 @@ void vacuumOnOff(bool state) {
 }
 
 void loop() {
-  cmd = btCmdIn();	// Call Bluetooth command
-  btn = irRx();		// Call IR command
+  btCmdIn();	// Call Bluetooth command
+  irRx();		// Call IR command
 
   ultrasonic();		// Scanning Ultrasonic sensor data to global var
 
