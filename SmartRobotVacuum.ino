@@ -69,26 +69,22 @@ void setup() {
 }
 
 /* 블루투스를 통해 텍스트 읽어오기 */
-char btCmdIn() {
+void btCmdIn() {
   if (Serial3.available()) {  // 통신이 가능한 상태면
     cmd = Serial3.read();     // 블루투스 TX로부터 데이터를 받아와 cmd에 저장
 
     Serial.println(cmd);      // 로깅용 Serial 모니터 출력
 
-    return cmd;
   }
-  else { return "e"; }        // 실패시 e 반환
 }
 
 /* IR 리모콘을 통해 값 읽어오기 */
-int irRx() {
+void irRx() {
   if (IrReceiver.decode()) {  // IR로부터 데이터를 읽어와 객체 내에 저장
     IrReceiver.resume();      // 다음 값 수신 준비
-    int temp = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
+    btn = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
 
     Serial.println(temp);
-
-    return temp;
   }
 }
 
@@ -151,6 +147,7 @@ void ultrasonic() {
   digitalWrite(US0_TRI, HIGH);
   delayMicroseconds(10);
   digitalWrite(US0_TRI, LOW);
+  dis[0] = pulseIn(US0_ECH, HIGH) / 58.2;
 
   //초음파 센서를 초기화 하는 과정 US1
   digitalWrite(US1_TRI, LOW);
@@ -158,6 +155,7 @@ void ultrasonic() {
   digitalWrite(US1_TRI, HIGH);
   delayMicroseconds(10);
   digitalWrite(US1_TRI, LOW);
+  dis[1] = pulseIn(US1_ECH, HIGH) / 58.2;
 
   //초음파 센서를 초기화 하는 과정 US2
   digitalWrite(US2_TRI, LOW);
@@ -165,10 +163,6 @@ void ultrasonic() {
   digitalWrite(US2_TRI, HIGH);
   delayMicroseconds(10);
   digitalWrite(US2_TRI, LOW);
-
-  // 트리커 핀에서 나온 펄스를 받아 cm 단위로 거리 계산
-  dis[0] = pulseIn(US0_ECH, HIGH) / 58.2;
-  dis[1] = pulseIn(US1_ECH, HIGH) / 58.2;
   dis[2] = pulseIn(US2_ECH, HIGH) / 58.2;
 
   Serial.print(dis[0]);
@@ -193,19 +187,23 @@ void vacuumOnOff(bool state) {
 }
 
 void loop() {
-  cmd = btCmdIn();	// Call Bluetooth command
-  btn = irRx();		// Call IR command
+  btCmdIn();	// Call Bluetooth command
+  irRx();		// Call IR command
 
   ultrasonic();		// Scanning Ultrasonic sensor data to global var
 
   if(dis[0] < 5 && dis[1] < 5) {	// If left and right side both face obstacle
-    if (dis[2] < 15) {			  // If rear side not face obstacle
+    if (dis[2] > 15) {			  // If rear side not face obstacle
       reverse();
       delay(3000);
       stop();
-      if (dis[0] < 5) { left(); }	  // If left side not face obstacle
-      else if (dis[1] < 5) { right(); }   // Else if right side not face obstacle
-      else { forward(); }		  // Else go straight and try to overpass obstacle
+      mov = false;
+      if (dis[0] < 5) { right(); }	  // If left side not face obstacle
+      else if (dis[1] < 5) { left(); }   // Else if right side not face obstacle
+      else {				 // Else go straight and try to overpass obstacle
+	forward(1);
+	mov = true;
+      }
     }
   }
   else if (dis[0] < 5) { left(); }
