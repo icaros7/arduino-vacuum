@@ -197,9 +197,13 @@ void loop() {
       reverse();
       delay(3000);
       stop();
-      if (dis[0] < 5) { left(); }	  // If left side not face obstacle
-      else if (dis[1] < 5) { right(); }   // Else if right side not face obstacle
-      else { forward(); }		  // Else go straight and try to overpass obstacle
+      mov = false;
+      if (dis[0] < 5) { right(); }	  // If left side not face obstacle
+      else if (dis[1] < 5) { left(); }   // Else if right side not face obstacle
+      else {				 // Else go straight and try to overpass obstacle
+	forward(1);
+	mov = true;
+      }
     }
   }
   else if (dis[0] < 5) { left(); }
