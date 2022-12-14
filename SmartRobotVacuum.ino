@@ -193,7 +193,7 @@ void loop() {
   ultrasonic();		// Scanning Ultrasonic sensor data to global var
 
   if(dis[0] < 5 && dis[1] < 5) {	// If left and right side both face obstacle
-    if (dis[2] < 15) {			  // If rear side not face obstacle
+    if (dis[2] > 15) {			  // If rear side not face obstacle
       reverse();
       delay(3000);
       stop();
