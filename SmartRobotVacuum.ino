@@ -147,6 +147,7 @@ void ultrasonic() {
   digitalWrite(US0_TRI, HIGH);
   delayMicroseconds(10);
   digitalWrite(US0_TRI, LOW);
+  dis[0] = pulseIn(US0_ECH, HIGH) / 58.2;
 
   //초음파 센서를 초기화 하는 과정 US1
   digitalWrite(US1_TRI, LOW);
@@ -154,6 +155,7 @@ void ultrasonic() {
   digitalWrite(US1_TRI, HIGH);
   delayMicroseconds(10);
   digitalWrite(US1_TRI, LOW);
+  dis[1] = pulseIn(US1_ECH, HIGH) / 58.2;
 
   //초음파 센서를 초기화 하는 과정 US2
   digitalWrite(US2_TRI, LOW);
@@ -161,10 +163,6 @@ void ultrasonic() {
   digitalWrite(US2_TRI, HIGH);
   delayMicroseconds(10);
   digitalWrite(US2_TRI, LOW);
-
-  // 트리커 핀에서 나온 펄스를 받아 cm 단위로 거리 계산
-  dis[0] = pulseIn(US0_ECH, HIGH) / 58.2;
-  dis[1] = pulseIn(US1_ECH, HIGH) / 58.2;
   dis[2] = pulseIn(US2_ECH, HIGH) / 58.2;
 
   Serial.print(dis[0]);
