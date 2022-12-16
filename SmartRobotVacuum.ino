@@ -23,7 +23,6 @@
 #define IR_RX 13    // IR 센서 PWM 컨트롤 핀
 #define MAX_PWM 125
 
-int btn;    	     // IR 리모콘 데이터 저장 변수
 int Dir1Pin_m0 = 38; // 왼쪽 모터 in1
 int Dir2Pin_m0 = 39; // 왼쪽 모터 in2
 int SpeedPin_m0 = 12;// 왼쪽 모터 enable & PWM 컨트롤
@@ -36,6 +35,7 @@ int Dir1Pin_m2 = 46; // 청소 모터 in1
 int Dir2Pin_m2 = 47; // 청소 모터 in2
 int SpeedPin_m2 = 10;// 청소 모터 enable & PWM 컨트롤
 
+int btn;    // IR 리모콘 데이터 저장 변수
 long dis[3];// 초음파 센서 데이터 저장용 배열
 char cmd;   // BT Serial 통신 텍스트 저장 변수
 bool mov;   // 마지막 진행 방향 저장 변수 (0: 후진, 1: 전진)
@@ -44,7 +44,12 @@ bool mt_mode = true;
 IRrecv irrecv(IR_RX); // IR 객체
 
 void setup() {
+  Serial.begin(9600);
+  Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
   Serial.println("INFO: Call setup()");
+
+  // IR rx init
+  IrReceiver.begin(IR_RX);
 
   //motor pinMode
   pinMode(Dir1Pin_m0, OUTPUT);
@@ -65,10 +70,8 @@ void setup() {
   pinMode(US2_TRI, OUTPUT);
   pinMode(US2_ECH, INPUT);
 
-  Serial.begin(9600);
-  Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
-  IrReceiver.begin(IR_RX);
-
+  digitalWrite(Dir1Pin_m2, LOW);
+  digitalWrite(Dir2Pin_m2, HIGH);
   vacuumOnOff(true);
 }
 
@@ -78,7 +81,6 @@ void btCmdIn() {
     cmd = Serial3.read();     // 블루투스 TX로부터 데이터를 받아와 cmd에 저장
 
     Serial.println(cmd);      // 로깅용 Serial 모니터 출력
-
   }
 }
 
@@ -243,5 +245,5 @@ void loop() {
       mov = false;		// Set last direction to reverse
     }
   }
-  else { scanWay(); }
+  else { scanWay(); } // AI 모드라면
 }
