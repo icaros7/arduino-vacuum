@@ -143,6 +143,7 @@ void reverse(int temp) {
 void stop() {
   analogWrite(SpeedPin_m0, 0);
   analogWrite(SpeedPin_m1, 0);
+  delay(500);
 }
 
 /* 초음파 센서 값 읽기 메서드 */
