@@ -182,22 +182,19 @@ void ultrasonic() {
 /* 물걸래 청소기 작동 컨트롤 */
 void vacuumOnOff(bool state) {
   if (state) {
-    digitalWrite(Dir1Pin_m2, LOW);
-    digitalWrite(Dir2Pin_m2, HIGH);
     analogWrite(SpeedPin_m2, 255);
   }
   else {
-    digitalWrite(Dir1Pin_m2, LOW);
-    digitalWrite(Dir2Pin_m2, HIGH);
     analogWrite(SpeedPin_m2, 0);
   }
 }
 
+/* AI 모드 시 센서를 통한 방향 판단 */
 void scanWay() {
   if (dis[0] < 10 && dis[1] < 10) {	// If left and right side both face obstacle
-    if (dis[2] > 30) {			  // If rear side not face obstacle
+    if (dis[2] > 50) {			  // If rear side not face obstacle
       reverse(1);
-      delay(1000);
+      delay(2000);
       mov = false;
     }
     else if (dis[0] < 10) { right(); }
@@ -209,6 +206,7 @@ void scanWay() {
   }
   else if (dis[0] < 10) { right(); }
   else if (dis[1] < 10) { left(); }
+  else if (dis[2] < 7) { left(); }
   else {
     forward(1);
     mov = true;
