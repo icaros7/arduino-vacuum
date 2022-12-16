@@ -68,6 +68,8 @@ void setup() {
   Serial.begin(9600);
   Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
   IrReceiver.begin(IR_RX);
+
+  vacuumOnOff(true);
 }
 
 /* 블루투스를 통해 텍스트 읽어오기 */
@@ -86,7 +88,7 @@ void irRx() {
     IrReceiver.resume();      // 다음 값 수신 준비
     btn = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
 
-    Serial.println(temp);
+    Serial.println(btn);
   }
 }
 
@@ -185,6 +187,28 @@ void vacuumOnOff(bool state) {
     digitalWrite(Dir1Pin_m2, LOW);
     digitalWrite(Dir2Pin_m2, HIGH);
     analogWrite(SpeedPin_m2, 0);
+  }
+}
+
+void scanWay() {
+  if (dis[0] < 10 && dis[1] < 10) {	// If left and right side both face obstacle
+    if (dis[2] > 30) {			  // If rear side not face obstacle
+      reverse(1);
+      delay(1000);
+      mov = false;
+    }
+    else if (dis[0] < 10) { right(); }
+    else if (dis[1] < 10) { left(); }
+    else {				 // Else go straight and try to overpass obstacle
+      forward(1);
+      mov = true;
+    }
+  }
+  else if (dis[0] < 10) { right(); }
+  else if (dis[1] < 10) { left(); }
+  else {
+    forward(1);
+    mov = true;
   }
 }
 
