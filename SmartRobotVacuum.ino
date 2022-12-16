@@ -20,15 +20,16 @@
 #define US1_ECH 24
 #define US2_TRI 27  // 후방 초음파 센서 핀
 #define US2_ECH 26
-#define IR_RX 13    // IR 센서 PWM 컨트롤 피
+#define IR_RX 13    // IR 센서 PWM 컨트롤 핀
+#define MAX_PWM 125
 
 int btn;    	     // IR 리모콘 데이터 저장 변수
 int Dir1Pin_m0 = 38; // 왼쪽 모터 in1
 int Dir2Pin_m0 = 39; // 왼쪽 모터 in2
 int SpeedPin_m0 = 12;// 왼쪽 모터 enable & PWM 컨트롤
 
-int Dir1Pin_m1 = 40; // 오른쪽 모터 in1
-int Dir2Pin_m1 = 41; // 오른쪽 모터 in2
+int Dir1Pin_m1 = 42; // 오른쪽 모터 in1
+int Dir2Pin_m1 = 43; // 오른쪽 모터 in2
 int SpeedPin_m1 = 11;// 오른쪽 모터 enable & PWM 컨트롤
 
 int Dir1Pin_m2 = 46; // 청소 모터 in1
@@ -38,6 +39,7 @@ int SpeedPin_m2 = 10;// 청소 모터 enable & PWM 컨트롤
 long dis[3];// 초음파 센서 데이터 저장용 배열
 char cmd;   // BT Serial 통신 텍스트 저장 변수
 bool mov;   // 마지막 진행 방향 저장 변수 (0: 후진, 1: 전진)
+bool mt_mode = true;
 
 IRrecv irrecv(IR_RX); // IR 객체
 
@@ -66,6 +68,8 @@ void setup() {
   Serial.begin(9600);
   Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
   IrReceiver.begin(IR_RX);
+
+  vacuumOnOff(true);
 }
 
 /* 블루투스를 통해 텍스트 읽어오기 */
@@ -84,7 +88,7 @@ void irRx() {
     IrReceiver.resume();      // 다음 값 수신 준비
     btn = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
 
-    Serial.println(temp);
+    Serial.println(btn);
   }
 }
 
@@ -95,30 +99,30 @@ void forward(int temp) {
 
   digitalWrite(Dir1Pin_m0, HIGH);
   digitalWrite(Dir2Pin_m0, LOW);
-  analogWrite(SpeedPin_m0, 255);  // SpeedPin은 PWM 컨트롤 해야하므로 analogWrite 사용
+  analogWrite(SpeedPin_m0, MAX_PWM);  // SpeedPin은 PWM 컨트롤 해야하므로 analogWrite 사용
   digitalWrite(Dir1Pin_m1, HIGH);
   digitalWrite(Dir2Pin_m1, LOW);
-  analogWrite(SpeedPin_m1, 255);
-}
-
-/* 차량 우회전 메서드 */
-void right(void) {
-  digitalWrite(Dir1Pin_m0, LOW);  // left side 역회전
-  digitalWrite(Dir2Pin_m0, HIGH);
-  analogWrite(SpeedPin_m0, 255);
-  digitalWrite(Dir1Pin_m1, HIGH); // right side 정회전
-  digitalWrite(Dir2Pin_m1, LOW);
-  analogWrite(SpeedPin_m1, 255);
+  analogWrite(SpeedPin_m1, MAX_PWM);
 }
 
 /* 차량 좌회전 메서드 */
 void left(void) {
+  digitalWrite(Dir1Pin_m0, LOW);  // left side 역회전
+  digitalWrite(Dir2Pin_m0, HIGH);
+  analogWrite(SpeedPin_m0, MAX_PWM);
+  digitalWrite(Dir1Pin_m1, HIGH); // right side 정회전
+  digitalWrite(Dir2Pin_m1, LOW);
+  analogWrite(SpeedPin_m1, MAX_PWM);
+}
+
+/* 차량 우회전 메서드 */
+void right(void) {
   digitalWrite(Dir1Pin_m0, HIGH); // left side 정회전
   digitalWrite(Dir2Pin_m0, LOW);
-  analogWrite(SpeedPin_m0, 255);
+  analogWrite(SpeedPin_m0, MAX_PWM);
   digitalWrite(Dir1Pin_m1, LOW);  // right side 역회전
   digitalWrite(Dir2Pin_m1, HIGH);
-  analogWrite(SpeedPin_m1, 255);
+  analogWrite(SpeedPin_m1, MAX_PWM);
 }
 
 /* 차량 후진 메서드 */
@@ -127,16 +131,16 @@ void reverse(int temp) {
 
   digitalWrite(Dir1Pin_m0, LOW);  // left side 역회전
   digitalWrite(Dir2Pin_m0, HIGH);
-  analogWrite(SpeedPin_m0, 255);
+  analogWrite(SpeedPin_m0, MAX_PWM);
   digitalWrite(Dir1Pin_m1, LOW);  // right side 역회전
   digitalWrite(Dir2Pin_m1, HIGH);
-  analogWrite(SpeedPin_m1, 255);
+  analogWrite(SpeedPin_m1, MAX_PWM);
 }
 
 /* 차량 정지 메서드 */
 void stop() {
-  analogWrite(SpeedPin_m0,0);
-  analogWrite(SpeedPin_m1,0);
+  analogWrite(SpeedPin_m0, 0);
+  analogWrite(SpeedPin_m1, 0);
 }
 
 /* 초음파 센서 값 읽기 메서드 */
@@ -186,44 +190,58 @@ void vacuumOnOff(bool state) {
   }
 }
 
+void scanWay() {
+  if (dis[0] < 10 && dis[1] < 10) {	// If left and right side both face obstacle
+    if (dis[2] > 30) {			  // If rear side not face obstacle
+      reverse(1);
+      delay(1000);
+      mov = false;
+    }
+    else if (dis[0] < 10) { right(); }
+    else if (dis[1] < 10) { left(); }
+    else {				 // Else go straight and try to overpass obstacle
+      forward(1);
+      mov = true;
+    }
+  }
+  else if (dis[0] < 10) { right(); }
+  else if (dis[1] < 10) { left(); }
+  else {
+    forward(1);
+    mov = true;
+  }
+}
+
 void loop() {
   btCmdIn();	// Call Bluetooth command
   irRx();		// Call IR command
-
   ultrasonic();		// Scanning Ultrasonic sensor data to global var
 
-  if(dis[0] < 5 && dis[1] < 5) {	// If left and right side both face obstacle
-    if (dis[2] > 15) {			  // If rear side not face obstacle
-      reverse();
-      delay(3000);
-      stop();
-      mov = false;
-      if (dis[0] < 5) { right(); }	  // If left side not face obstacle
-      else if (dis[1] < 5) { left(); }   // Else if right side not face obstacle
-      else {				 // Else go straight and try to overpass obstacle
-	forward(1);
-	mov = true;
-      }
-    }
-  }
-  else if (dis[0] < 5) { left(); }
-  else if (dis[1] < 5) { right(); }
-
+  if (cmd == 'R' || btn == 66) { mt_mode = false; }
+  if (cmd == 'M' || btn == 12) { mt_mode = true; }
   if (cmd == 'O' || btn == 94) { vacuumOnOff(true); }	// Turn on vacuum via BT 'O' or IR num_3
   if (cmd == 'F' || btn == 74) { vacuumOnOff(false); }	// Turn off vacuum via BT 'F' or IR num_9
-  if (cmd == 'D' || btn == 90) { right(); }		// Turn right via BT 'D' or IR num_6
-  if (cmd == 'C' || btn == 8) { left(); }		// Turn left via BT 'C' or IR num_3
-  if (cmd == 'S' || btn == 28) { stop(); }		// Set pwmSpeed 0 via BT 'S' or IR num_5
-  if (cmd == 'A' || btn == 24) {// Chnage direction to forward via BT 'A' or IR num_2
-    if (!mov) { forward(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
-    else { forward(0); }
 
-    mov = true;			// Set last direction to forward
+  if (mt_mode) {
+    if (cmd == 'D' || btn == 90) { right(); }		// Turn right via BT 'D' or IR num_6
+    if (cmd == 'C' || btn == 8) { left(); }		// Turn left via BT 'C' or IR num_3
+    if (cmd == 'S' || btn == 28) { stop(); }		// Set pwmSpeed 0 via BT 'S' or IR num_5
+    if (cmd == 'A' || btn == 24) {// Chnage direction to forward via BT 'A' or IR num_2
+      if (!mov) {
+        forward(1);
+        mov = true;
+      }	// If last direction is reverse then set pwmSpeed 0 and change direction
+      else {
+        forward(0);
+        mov = true;
+      }
+      mov = true;			// Set last direction to forward
+    }
+    if (cmd == 'B' || btn == 82) {// Change direction to rear via BT 'B' or IR num_8
+      if (mov) { reverse(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
+      else { reverse(0); }
+      mov = false;		// Set last direction to reverse
+    }
   }
-  if (cmd == 'B' || btn == 82) {// Change direction to rear via BT 'B' or IR num_8
-    if (mov) { reverse(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
-    else { reverse(0); }
-
-    mov = false;		// Set last direction to reverse
-  }
+  else { scanWay(); }
 }
