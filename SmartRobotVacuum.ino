@@ -203,9 +203,15 @@ void scanWay() {
       mov = true;
     }
   }
+  else if (dis[2] < 7 && dis[1] < 10) { left(); }
+  else if (dis[2] < 7 && dis[0] < 10) { right(); }
+  else if (dis[2] < 7) {
+    left();
+    forward(1);
+    mov = true;
+  }
   else if (dis[0] < 10) { right(); }
   else if (dis[1] < 10) { left(); }
-  else if (dis[2] < 7) { left(); }
   else {
     forward(1);
     mov = true;
