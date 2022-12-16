@@ -23,7 +23,6 @@
 #define IR_RX 13    // IR 센서 PWM 컨트롤 핀
 #define MAX_PWM 125
 
-int btn;    	     // IR 리모콘 데이터 저장 변수
 int Dir1Pin_m0 = 38; // 왼쪽 모터 in1
 int Dir2Pin_m0 = 39; // 왼쪽 모터 in2
 int SpeedPin_m0 = 12;// 왼쪽 모터 enable & PWM 컨트롤
@@ -36,6 +35,7 @@ int Dir1Pin_m2 = 46; // 청소 모터 in1
 int Dir2Pin_m2 = 47; // 청소 모터 in2
 int SpeedPin_m2 = 10;// 청소 모터 enable & PWM 컨트롤
 
+int btn;    // IR 리모콘 데이터 저장 변수
 long dis[3];// 초음파 센서 데이터 저장용 배열
 char cmd;   // BT Serial 통신 텍스트 저장 변수
 bool mov;   // 마지막 진행 방향 저장 변수 (0: 후진, 1: 전진)
@@ -44,7 +44,12 @@ bool mt_mode = true;
 IRrecv irrecv(IR_RX); // IR 객체
 
 void setup() {
+  Serial.begin(9600);
+  Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
   Serial.println("INFO: Call setup()");
+
+  // IR rx init
+  IrReceiver.begin(IR_RX);
 
   //motor pinMode
   pinMode(Dir1Pin_m0, OUTPUT);
@@ -65,10 +70,8 @@ void setup() {
   pinMode(US2_TRI, OUTPUT);
   pinMode(US2_ECH, INPUT);
 
-  Serial.begin(9600);
-  Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
-  IrReceiver.begin(IR_RX);
-
+  digitalWrite(Dir1Pin_m2, LOW);
+  digitalWrite(Dir2Pin_m2, HIGH);
   vacuumOnOff(true);
 }
 
@@ -78,7 +81,6 @@ void btCmdIn() {
     cmd = Serial3.read();     // 블루투스 TX로부터 데이터를 받아와 cmd에 저장
 
     Serial.println(cmd);      // 로깅용 Serial 모니터 출력
-
   }
 }
 
@@ -141,6 +143,7 @@ void reverse(int temp) {
 void stop() {
   analogWrite(SpeedPin_m0, 0);
   analogWrite(SpeedPin_m1, 0);
+  delay(500);
 }
 
 /* 초음파 센서 값 읽기 메서드 */
@@ -179,22 +182,19 @@ void ultrasonic() {
 /* 물걸래 청소기 작동 컨트롤 */
 void vacuumOnOff(bool state) {
   if (state) {
-    digitalWrite(Dir1Pin_m2, LOW);
-    digitalWrite(Dir2Pin_m2, HIGH);
     analogWrite(SpeedPin_m2, 255);
   }
   else {
-    digitalWrite(Dir1Pin_m2, LOW);
-    digitalWrite(Dir2Pin_m2, HIGH);
     analogWrite(SpeedPin_m2, 0);
   }
 }
 
+/* AI 모드 시 센서를 통한 방향 판단 */
 void scanWay() {
   if (dis[0] < 10 && dis[1] < 10) {	// If left and right side both face obstacle
-    if (dis[2] > 30) {			  // If rear side not face obstacle
+    if (dis[2] > 50) {			  // If rear side not face obstacle
       reverse(1);
-      delay(1000);
+      delay(2000);
       mov = false;
     }
     else if (dis[0] < 10) { right(); }
@@ -206,10 +206,41 @@ void scanWay() {
   }
   else if (dis[0] < 10) { right(); }
   else if (dis[1] < 10) { left(); }
+  else if (dis[2] < 7) { left(); }
   else {
     forward(1);
     mov = true;
   }
+}
+
+/* 통합 원격 조정 메서드 */
+void hybridRC() {
+  if (cmd == 'D' || btn == 90) { right(); }		// Turn right via BT 'D' or IR num_6
+  if (cmd == 'C' || btn == 8) { left(); }		// Turn left via BT 'C' or IR num_3
+  if (cmd == 'S' || btn == 28) { stop(); }		// Set pwmSpeed 0 via BT 'S' or IR num_5
+  if (cmd == 'A' || btn == 24) {// Chnage direction to forward via BT 'A' or IR num_2
+    if (!mov) {
+      forward(1);
+      mov = true;
+    }	// If last direction is reverse then set pwmSpeed 0 and change direction
+    else {
+      forward(0);
+      mov = true;
+    }
+    mov = true;			// Set last direction to forward
+  }
+  if (cmd == 'B' || btn == 82) {// Change direction to rear via BT 'B' or IR num_8
+    if (mov) { reverse(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
+    else { reverse(0); }
+    mov = false;		// Set last direction to reverse
+  }
+}
+
+/* 근처에 장애물 존재 유무 판단 메서드 */
+bool scanWall() {
+  if (dis[0] < 7 || dis[1] < 7 || dis[2] < 10) { return true; }
+
+  return false;
 }
 
 void loop() {
@@ -217,31 +248,30 @@ void loop() {
   irRx();		// Call IR command
   ultrasonic();		// Scanning Ultrasonic sensor data to global var
 
-  if (cmd == 'R' || btn == 66) { mt_mode = false; }
-  if (cmd == 'M' || btn == 12) { mt_mode = true; }
-  if (cmd == 'O' || btn == 94) { vacuumOnOff(true); }	// Turn on vacuum via BT 'O' or IR num_3
-  if (cmd == 'F' || btn == 74) { vacuumOnOff(false); }	// Turn off vacuum via BT 'F' or IR num_9
-
-  if (mt_mode) {
-    if (cmd == 'D' || btn == 90) { right(); }		// Turn right via BT 'D' or IR num_6
-    if (cmd == 'C' || btn == 8) { left(); }		// Turn left via BT 'C' or IR num_3
-    if (cmd == 'S' || btn == 28) { stop(); }		// Set pwmSpeed 0 via BT 'S' or IR num_5
-    if (cmd == 'A' || btn == 24) {// Chnage direction to forward via BT 'A' or IR num_2
-      if (!mov) {
-        forward(1);
-        mov = true;
-      }	// If last direction is reverse then set pwmSpeed 0 and change direction
-      else {
-        forward(0);
-        mov = true;
-      }
-      mov = true;			// Set last direction to forward
-    }
-    if (cmd == 'B' || btn == 82) {// Change direction to rear via BT 'B' or IR num_8
-      if (mov) { reverse(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
-      else { reverse(0); }
-      mov = false;		// Set last direction to reverse
-    }
+  if (cmd == 'R' || btn == 66) {  // Switch to AI mode via BT 'R' or IR num_1
+    mt_mode = false;
+    btn = 0;    // Prevent recursive call
+    cmd = 'e';
   }
-  else { scanWay(); }
+  if (cmd == 'M' || btn == 12) {  // Switch to manual mode via BT 'M" or IR num_7
+    mt_mode = true;
+    btn = 0;
+    cmd = 'e';
+  }
+  if (cmd == 'O' || btn == 94) {	// Turn on vacuum via BT 'O' or IR num_3
+    vacuumOnOff(true);
+    btn = 0;
+    cmd = 'e';
+  }
+  if (cmd == 'F' || btn == 74) {	// Turn off vacuum via BT 'F' or IR num_9
+    vacuumOnOff(false);
+    btn = 0;
+    cmd = 'e';
+  }
+
+  if (mt_mode) { // 수동 조작 모드이면
+    if (!scanWall()) { hybridRC(); } // 근방에 장애물이 없다면
+    else { stop(); }  // 근방에 장애물이 있다면
+  }
+  else { scanWay(); } // AI 모드라면
 }
