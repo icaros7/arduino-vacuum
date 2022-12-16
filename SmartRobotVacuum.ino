@@ -36,7 +36,9 @@ int Dir2Pin_m2 = 47; // 청소 모터 in2
 int SpeedPin_m2 = 10;// 청소 모터 enable & PWM 컨트롤
 
 int btn;    // IR 리모콘 데이터 저장 변수
+int offset = 0;
 long dis[3];// 초음파 센서 데이터 저장용 배열
+long time, cur;
 char cmd;   // BT Serial 통신 텍스트 저장 변수
 bool mov;   // 마지막 진행 방향 저장 변수 (0: 후진, 1: 전진)
 bool mt_mode = true;
@@ -47,6 +49,8 @@ void setup() {
   Serial.begin(9600);
   Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
   Serial.println("INFO: Call setup()");
+
+  time = millis();
 
   // IR rx init
   IrReceiver.begin(IR_RX);
@@ -190,28 +194,28 @@ void vacuumOnOff(bool state) {
 
 /* AI 모드 시 센서를 통한 방향 판단 */
 void scanWay() {
-  if (dis[0] < 10 && dis[1] < 10) {	// If left and right side both face obstacle
+  if (dis[0] < 10 + offset && dis[1] < 10 + offset) {	// If left and right side both face obstacle
     if (dis[2] > 50) {			  // If rear side not face obstacle
       reverse(1);
       delay(2000);
       mov = false;
     }
-    else if (dis[0] < 10) { right(); }
-    else if (dis[1] < 10) { left(); }
+    else if (dis[0] < 10 + offset) { right(); }
+    else if (dis[1] < 10 + offset) { left(); }
     else {				 // Else go straight and try to overpass obstacle
       forward(1);
       mov = true;
     }
   }
-  else if (dis[2] < 7 && dis[1] < 10) { left(); }
-  else if (dis[2] < 7 && dis[0] < 10) { right(); }
-  else if (dis[2] < 7) {
+  else if (dis[2] < 7 && dis[1] < 10 + offset) { left(); }
+  else if (dis[2] < 7 && dis[0] < 10 + offset) { right(); }
+  else if (dis[2] < 7 + offset) {
     left();
     forward(1);
     mov = true;
   }
-  else if (dis[0] < 10) { right(); }
-  else if (dis[1] < 10) { left(); }
+  else if (dis[0] < 10 + offset) { right(); }
+  else if (dis[1] < 10 + offset) { left(); }
   else {
     forward(1);
     mov = true;
@@ -242,6 +246,9 @@ void hybridRC() {
 }
 
 void loop() {
+  cur = millis();
+  if (cur - time > 120000) { offset += 5; }
+
   btCmdIn();	// Call Bluetooth command
   irRx();		// Call IR command
   ultrasonic();		// Scanning Ultrasonic sensor data to global var
