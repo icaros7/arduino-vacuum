@@ -143,7 +143,6 @@ void reverse(int temp) {
 void stop() {
   analogWrite(SpeedPin_m0, 0);
   analogWrite(SpeedPin_m1, 0);
-  delay(500);
 }
 
 /* 초음파 센서 값 읽기 메서드 */
@@ -204,9 +203,15 @@ void scanWay() {
       mov = true;
     }
   }
+  else if (dis[2] < 7 && dis[1] < 10) { left(); }
+  else if (dis[2] < 7 && dis[0] < 10) { right(); }
+  else if (dis[2] < 7) {
+    left();
+    forward(1);
+    mov = true;
+  }
   else if (dis[0] < 10) { right(); }
   else if (dis[1] < 10) { left(); }
-  else if (dis[2] < 7) { left(); }
   else {
     forward(1);
     mov = true;
@@ -236,13 +241,6 @@ void hybridRC() {
   }
 }
 
-/* 근처에 장애물 존재 유무 판단 메서드 */
-bool scanWall() {
-  if (dis[0] < 7 || dis[1] < 7 || dis[2] < 10) { return true; }
-
-  return false;
-}
-
 void loop() {
   btCmdIn();	// Call Bluetooth command
   irRx();		// Call IR command
@@ -269,9 +267,6 @@ void loop() {
     cmd = 'e';
   }
 
-  if (mt_mode) { // 수동 조작 모드이면
-    if (!scanWall()) { hybridRC(); } // 근방에 장애물이 없다면
-    else { stop(); }  // 근방에 장애물이 있다면
-  }
+  if (mt_mode) { hybridRC(); } // 수동 조작 모드면
   else { scanWay(); } // AI 모드라면
 }
