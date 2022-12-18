@@ -21,7 +21,7 @@
 #define US2_TRI 27  // 후방 초음파 센서 핀
 #define US2_ECH 26
 #define IR_RX 13    // IR 센서 PWM 컨트롤 핀
-#define MAX_PWM 125
+#define MAX_PWM 125 // 전역 모터 속도 제어 값
 
 int Dir1Pin_m0 = 38; // 왼쪽 모터 in1
 int Dir2Pin_m0 = 39; // 왼쪽 모터 in2
@@ -41,7 +41,7 @@ long dis[3];// 초음파 센서 데이터 저장용 배열
 long time, cur;
 char cmd;   // BT Serial 통신 텍스트 저장 변수
 bool mov;   // 마지막 진행 방향 저장 변수 (0: 후진, 1: 전진)
-bool mt_mode = true;
+bool mt_mode = true;  // Turn on manual mode on boot-up
 
 IRrecv irrecv(IR_RX); // IR 객체
 
@@ -50,12 +50,12 @@ void setup() {
   Serial3.begin(9600);  // 메가 2506의 BT 시리얼 통신을 위해 Serial3 (14, 15번 핀) 사용
   Serial.println("INFO: Call setup()");
 
-  time = millis();
+  time = millis();  // Record boot-up millis for management sensing offset
 
   // IR rx init
   IrReceiver.begin(IR_RX);
 
-  //motor pinMode
+  // Motor pinMode init
   pinMode(Dir1Pin_m0, OUTPUT);
   pinMode(Dir2Pin_m0, OUTPUT);
   pinMode(SpeedPin_m0, OUTPUT);
@@ -66,7 +66,7 @@ void setup() {
   pinMode(Dir2Pin_m2, OUTPUT);
   pinMode(SpeedPin_m2, OUTPUT);
 
-  // senor pinMode
+  // ultrasonic sensor pinMode init
   pinMode(US0_TRI, OUTPUT);
   pinMode(US0_ECH, INPUT);
   pinMode(US1_TRI, OUTPUT);
@@ -74,15 +74,16 @@ void setup() {
   pinMode(US2_TRI, OUTPUT);
   pinMode(US2_ECH, INPUT);
 
+  // Vacuum motor init
   digitalWrite(Dir1Pin_m2, LOW);
   digitalWrite(Dir2Pin_m2, HIGH);
-  vacuumOnOff(true);
+  vacuumOnOff(true);  // Turn on vacuum at boot-on
 }
 
 /* 블루투스를 통해 텍스트 읽어오기 */
 void btCmdIn() {
   if (Serial3.available()) {  // 통신이 가능한 상태면
-    cmd = Serial3.read();     // 블루투스 TX로부터 데이터를 받아와 cmd에 저장
+    cmd = Serial3.read();     // 블루투스 TX로부터 데이터를 받아와 global var cmd에 저장
 
     Serial.println(cmd);      // 로깅용 Serial 모니터 출력
   }
@@ -92,16 +93,15 @@ void btCmdIn() {
 void irRx() {
   if (IrReceiver.decode()) {  // IR로부터 데이터를 읽어와 객체 내에 저장
     IrReceiver.resume();      // 다음 값 수신 준비
-    btn = IrReceiver.decodedIRData.command; // temp에 버튼 고유값 가져오기
+    btn = IrReceiver.decodedIRData.command; // global var btn 에 버튼 고유값 가져오기
 
     Serial.println(btn);
   }
 }
 
-
 /* 차량 전진 메서드 */
 void forward(int temp) {
-  if( temp == 1) { stop(); }
+  if( temp == 1) { stop(); }  // 매개변수로 1이 넘어오면 완전 정지 후 출발
 
   digitalWrite(Dir1Pin_m0, HIGH);
   digitalWrite(Dir2Pin_m0, LOW);
@@ -151,7 +151,7 @@ void stop() {
 
 /* 초음파 센서 값 읽기 메서드 */
 void ultrasonic() {
-  //초음파 센서를 초기화 하는 과정 US0
+  // 초음파 센서를 초기화 하는 과정 US0
   digitalWrite(US0_TRI, LOW);
   delayMicroseconds(2);
   digitalWrite(US0_TRI, HIGH);
@@ -159,7 +159,7 @@ void ultrasonic() {
   digitalWrite(US0_TRI, LOW);
   dis[0] = pulseIn(US0_ECH, HIGH) / 58.2;
 
-  //초음파 센서를 초기화 하는 과정 US1
+  // 초음파 센서를 초기화 하는 과정 US1
   digitalWrite(US1_TRI, LOW);
   delayMicroseconds(2);
   digitalWrite(US1_TRI, HIGH);
@@ -167,7 +167,7 @@ void ultrasonic() {
   digitalWrite(US1_TRI, LOW);
   dis[1] = pulseIn(US1_ECH, HIGH) / 58.2;
 
-  //초음파 센서를 초기화 하는 과정 US2
+  // 초음파 센서를 초기화 하는 과정 US2
   digitalWrite(US2_TRI, LOW);
   delayMicroseconds(2);
   digitalWrite(US2_TRI, HIGH);
@@ -184,12 +184,8 @@ void ultrasonic() {
 
 /* 물걸래 청소기 작동 컨트롤 */
 void vacuumOnOff(bool state) {
-  if (state) {
-    analogWrite(SpeedPin_m2, 255);
-  }
-  else {
-    analogWrite(SpeedPin_m2, 0);
-  }
+  if (state) { analogWrite(SpeedPin_m2, 255); }
+  else { analogWrite(SpeedPin_m2, 0); }
 }
 
 /* AI 모드 시 센서를 통한 방향 판단 */
@@ -224,38 +220,32 @@ void scanWay() {
 
 /* 통합 원격 조정 메서드 */
 void hybridRC() {
-  if (cmd == 'D' || btn == 90) { right(); }		// Turn right via BT 'D' or IR num_6
+  if (cmd == 'D' || btn == 90) { right(); }	// Turn right via BT 'D' or IR num_6
   if (cmd == 'C' || btn == 8) { left(); }		// Turn left via BT 'C' or IR num_3
-  if (cmd == 'S' || btn == 28) { stop(); }		// Set pwmSpeed 0 via BT 'S' or IR num_5
-  if (cmd == 'A' || btn == 24) {// Chnage direction to forward via BT 'A' or IR num_2
-    if (!mov) {
-      forward(1);
-      mov = true;
-    }	// If last direction is reverse then set pwmSpeed 0 and change direction
-    else {
-      forward(0);
-      mov = true;
-    }
-    mov = true;			// Set last direction to forward
+  if (cmd == 'S' || btn == 28) { stop(); }  // Set pwmSpeed 0 via BT 'S' or IR num_5
+  if (cmd == 'A' || btn == 24) {            // Chnage direction to forward via BT 'A' or IR num_2
+    if (!mov) { forward(1); }
+    else { forward(0); }  // If last direction is reverse then set pwmSpeed 0 and change direction
+    mov = true;			      // Set last direction to forward
   }
   if (cmd == 'B' || btn == 82) {// Change direction to rear via BT 'B' or IR num_8
-    if (mov) { reverse(1); }	// If last direction is reverse then set pwmSpeed 0 and change direction
+    if (mov) { reverse(1); }    // If last direction is reverse then set pwmSpeed 0 and change direction
     else { reverse(0); }
-    mov = false;		// Set last direction to reverse
+    mov = false;		            // Set last direction to reverse
   }
 }
 
 void loop() {
-  cur = millis();
-  if (cur - time > 120000) { offset += 5; }
+  cur = millis(); // Set now time
+  if (cur - time > 180000) { offset += 5; } // Add ultrasonic sensing offset to 3cm per 3 minutes
 
-  btCmdIn();	// Call Bluetooth command
-  irRx();		// Call IR command
-  ultrasonic();		// Scanning Ultrasonic sensor data to global var
+  btCmdIn();      // Call Bluetooth command
+  irRx();         // Call IR command
+  ultrasonic();   // Scanning Ultrasonic sensor data to global var
 
   if (cmd == 'R' || btn == 66) {  // Switch to AI mode via BT 'R' or IR num_1
     mt_mode = false;
-    btn = 0;    // Prevent recursive call
+    btn = 0;      // Prevent recursive call
     cmd = 'e';
   }
   if (cmd == 'M' || btn == 12) {  // Switch to manual mode via BT 'M" or IR num_7
@@ -274,6 +264,6 @@ void loop() {
     cmd = 'e';
   }
 
-  if (mt_mode) { hybridRC(); } // 수동 조작 모드면
-  else { scanWay(); } // AI 모드라면
+  if (mt_mode) { hybridRC(); }  // 수동 조작 모드면
+  else { scanWay(); }           // AI 모드라면
 }
